@@ -123,7 +123,7 @@ def start_training(req: TrainingRequest, background_tasks: BackgroundTasks):
                         "noise_scheduler": "flowmatch"
                     },
                     "model": {
-                        "name_or_path": "/workspace/ai-influencer-studio/data/ComfyUI/models/unet/flux1-dev.safetensors",
+                        "name_or_path": "camenduru/FLUX.1-dev",
                         "is_flux": True,
                         "quantize": True
                     }
