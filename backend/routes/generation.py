@@ -1,4 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+import websockets
+import os
+import uuid
 from pydantic import BaseModel
 from typing import Optional
 from services.comfy import queue_prompt, build_flux_workflow, get_history
@@ -34,13 +37,16 @@ def generate_image(req: GenerationRequest):
         height=req.height
     )
     
-    response = queue_prompt(workflow)
+    client_id = str(uuid.uuid4())
+    
+    response = queue_prompt(workflow, client_id=client_id)
     if "error" in response:
         raise HTTPException(status_code=500, detail=response["error"])
         
     return {
         "status": "queued",
         "prompt_id": response.get("prompt_id"),
+        "client_id": client_id,
         "seed": seed
     }
 
@@ -61,3 +67,25 @@ def check_generation_status(prompt_id: str):
         return {"status": "complete", "images": outputs}
     else:
         return {"status": "pending"}
+
+COMFY_WS_URL = os.getenv("COMFY_WS_URL", "ws://127.0.0.1:8188/ws")
+
+@router.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    await websocket.accept()
+    comfy_url = f"{COMFY_WS_URL}?clientId={client_id}"
+    try:
+        async with websockets.connect(comfy_url) as comfy_ws:
+            async for message in comfy_ws:
+                await websocket.send_text(message)
+    except websockets.exceptions.ConnectionClosed:
+        pass
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"WebSocket Error: {e}")
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass

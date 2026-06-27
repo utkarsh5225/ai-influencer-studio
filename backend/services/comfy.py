@@ -9,8 +9,10 @@ if not os.getenv("COMFY_URL"):
     # Fallback for local testing outside docker
     COMFY_API_URL = "http://localhost:8188"
 
-def queue_prompt(prompt_workflow):
-    p = {"prompt": prompt_workflow, "client_id": str(uuid.uuid4())}
+def queue_prompt(prompt_workflow, client_id=None):
+    if not client_id:
+        client_id = str(uuid.uuid4())
+    p = {"prompt": prompt_workflow, "client_id": client_id}
     data = json.dumps(p).encode('utf-8')
     req =  urllib.request.Request(f"{COMFY_API_URL}/prompt", data=data)
     req.add_header('Content-Type', 'application/json')

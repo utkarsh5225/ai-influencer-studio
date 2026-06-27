@@ -4,10 +4,14 @@ function GenerationTab() {
   const [prompt, setPrompt] = useState("A stunning photorealistic portrait of an AI influencer, cinematic lighting, 8k resolution, highly detailed");
   const [status, setStatus] = useState("idle");
   const [images, setImages] = useState<string[]>([]);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [nodeName, setNodeName] = useState<string>("");
   
   const handleGenerate = async () => {
     setStatus("generating...");
     setImages([]);
+    setProgress(null);
+    setNodeName("");
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
       const res = await fetch(`${apiUrl}/generation/generate`, {
@@ -17,8 +21,32 @@ function GenerationTab() {
       });
       const data = await res.json();
       
-      if (data.prompt_id) {
+      if (data.prompt_id && data.client_id) {
          setStatus("queued");
+         
+         // Connect to WebSocket for live progress
+         const wsUrl = apiUrl.replace("http://", "ws://").replace("https://", "wss://");
+         const ws = new WebSocket(`${wsUrl}/generation/ws/${data.client_id}`);
+         ws.onmessage = (event) => {
+             try {
+                 const msg = JSON.parse(event.data);
+                 if (msg.type === "progress") {
+                     const { value, max } = msg.data;
+                     setProgress(Math.round((value / max) * 100));
+                 } else if (msg.type === "executing") {
+                     if (msg.data.node === null) {
+                         setProgress(100);
+                         setNodeName("Finalizing Image...");
+                     } else {
+                         setNodeName(`Executing Node: ${msg.data.node}`);
+                     }
+                 } else if (msg.type === "execution_start") {
+                     setNodeName("Starting Generation...");
+                     setProgress(0);
+                 }
+             } catch (err) {}
+         };
+         
          pollStatus(data.prompt_id, apiUrl);
       } else {
          setStatus("error: " + (data.detail || "no prompt_id returned"));
@@ -37,6 +65,8 @@ function GenerationTab() {
          if (data.status === "complete") {
             clearInterval(interval);
             setStatus("complete!");
+            setProgress(null);
+            setNodeName("");
             const imgUrls = data.images.map((img: string) => {
                 return `${apiUrl}${img}`;
             });
@@ -74,11 +104,24 @@ function GenerationTab() {
             </button>
          </div>
       </div>
-      <div className="mt-6 flex-1 bg-[#111827]/30 border border-gray-800/50 rounded-2xl p-6 overflow-y-auto custom-scrollbar">
-         {images.length > 0 ? (
+      <div className="mt-6 flex-1 bg-[#111827]/30 border border-gray-800/50 rounded-2xl p-6 overflow-y-auto custom-scrollbar flex flex-col">
+         {progress !== null ? (
+            <div className="h-full flex flex-col items-center justify-center animate-in fade-in duration-500 w-full max-w-2xl mx-auto">
+               <span className="text-6xl mb-6 animate-pulse drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]">🚀</span>
+               <h3 className="text-2xl font-bold text-white mb-2">{nodeName || "Loading Models..."}</h3>
+               <p className="text-gray-400 mb-8 text-center text-sm">FLUX is processing. This may involve loading over 30GB of neural networks into VRAM.</p>
+               <div className="w-full h-4 bg-gray-900 rounded-full overflow-hidden border border-gray-800 shadow-inner relative">
+                  <div 
+                     className="h-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all duration-300 ease-out shadow-[0_0_15px_rgba(16,185,129,0.5)]" 
+                     style={{ width: `${progress}%` }}
+                  ></div>
+               </div>
+               <div className="mt-4 text-emerald-400 font-bold text-2xl drop-shadow-[0_0_10px_rgba(16,185,129,0.4)]">{progress}%</div>
+            </div>
+         ) : images.length > 0 ? (
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              {images.map((img, i) => (
-                <img key={i} src={img} className="w-full h-auto rounded-xl shadow-2xl border border-gray-700/50" alt="Generated Output" />
+                <img key={i} src={img} className="w-full h-auto rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-gray-700/50" alt="Generated Output" />
              ))}
            </div>
          ) : (
