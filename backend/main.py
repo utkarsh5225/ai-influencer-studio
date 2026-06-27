@@ -3,7 +3,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import models, datasets, training, generation, workflows, video, captions, calendar, auth_routes
 from database import engine, Base
-
+from fastapi.staticfiles import StaticFiles
+import os
 # Set up logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("ai_studio")
@@ -25,6 +26,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount ComfyUI output folder to serve images
+output_dir = os.path.join(os.path.dirname(__file__), "..", "data", "ComfyUI", "output")
+os.makedirs(output_dir, exist_ok=True)
+app.mount("/output", StaticFiles(directory=output_dir), name="output")
 
 app.include_router(auth_routes.router)
 app.include_router(models.router)
