@@ -118,7 +118,8 @@ def start_training(req: TrainingRequest, background_tasks: BackgroundTasks):
                         {
                             "folder_path": f"/workspace/ai-influencer-studio/data/datasets/{req.dataset_name}",
                             "resolution": [req.resolution, req.resolution],
-                            "default_caption": req.trigger_word
+                            "default_caption": req.trigger_word,
+                            "cache_latents_to_disk": True
                         }
                     ],
                     "train": {
@@ -126,12 +127,14 @@ def start_training(req: TrainingRequest, background_tasks: BackgroundTasks):
                         "steps": req.epochs * 100,
                         "learning_rate": req.learning_rate,
                         "optimizer": req.optimizer,
-                        "noise_scheduler": "flowmatch"
+                        "noise_scheduler": "flowmatch",
+                        "gradient_checkpointing": True
                     },
                     "model": {
                         "name_or_path": "black-forest-labs/FLUX.1-dev",
                         "is_flux": True,
-                        "quantize": True
+                        "quantize": True,
+                        "low_vram": True
                     }
                 }
             ]
