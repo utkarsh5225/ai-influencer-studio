@@ -42,6 +42,10 @@ app.include_router(video.router)
 app.include_router(captions.router)
 app.include_router(calendar.router)
 
-@app.get("/")
-def read_root():
-    return {"status": "ok", "message": "AI Influencer Studio API is running"}
+frontend_dir = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+if os.path.exists(frontend_dir):
+    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+else:
+    @app.get("/")
+    def read_root():
+        return {"status": "ok", "message": "AI Influencer Studio API is running"}

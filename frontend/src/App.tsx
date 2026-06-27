@@ -16,7 +16,7 @@ function GenerationTab() {
     setProgress(null);
     setNodeName("");
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const apiUrl = import.meta.env.VITE_API_URL || "";
       const res = await fetch(`${apiUrl}/generation/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -28,7 +28,13 @@ function GenerationTab() {
          setStatus("queued");
          
          // Connect to WebSocket for live progress
-         const wsUrl = apiUrl.replace("http://", "ws://").replace("https://", "wss://");
+         let wsUrl = apiUrl;
+         if (!wsUrl) {
+             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+             wsUrl = `${protocol}//${window.location.host}`;
+         } else {
+             wsUrl = wsUrl.replace("http://", "ws://").replace("https://", "wss://");
+         }
          const ws = new WebSocket(`${wsUrl}/generation/ws/${data.client_id}`);
          ws.onmessage = (event) => {
              try {
@@ -180,7 +186,7 @@ function DatasetsTab() {
   const [newDatasetName, setNewDatasetName] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
   const [uploading, setUploading] = useState(false);
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const apiUrl = import.meta.env.VITE_API_URL || "";
 
   useEffect(() => {
     fetchDatasets();
@@ -276,7 +282,7 @@ function TrainingTab() {
   const [triggerWord, setTriggerWord] = useState("sks_influencer");
   const [hfToken, setHfToken] = useState("");
   const [status, setStatus] = useState<any>({ status: "idle", progress: 0, log: "" });
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const apiUrl = import.meta.env.VITE_API_URL || "";
 
   useEffect(() => {
     fetch(`${apiUrl}/datasets/`).then(r => r.json()).then(setDatasets);
