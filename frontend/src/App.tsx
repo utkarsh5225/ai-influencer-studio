@@ -37,11 +37,8 @@ function GenerationTab() {
          if (data.status === "complete") {
             clearInterval(interval);
             setStatus("complete!");
-            // ComfyUI serves images on port 8188. We proxy this by modifying the URL.
-            const comfyUrl = apiUrl.replace("8000", "8188");
             const imgUrls = data.images.map((img: string) => {
-                const filename = img.split('/').pop();
-                return `${comfyUrl}/view?filename=${filename}&type=output`;
+                return `${apiUrl}${img}`;
             });
             setImages(imgUrls);
          } else if (data.status === "error") {
