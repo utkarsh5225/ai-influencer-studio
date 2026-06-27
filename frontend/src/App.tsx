@@ -21,7 +21,7 @@ function GenerationTab() {
          setStatus("queued");
          pollStatus(data.prompt_id, apiUrl);
       } else {
-         setStatus("error: no prompt_id returned");
+         setStatus("error: " + (data.detail || "no prompt_id returned"));
       }
     } catch (e: any) {
       setStatus("error: " + e.message);

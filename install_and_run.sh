@@ -39,14 +39,14 @@ if [ ! -d "data/ComfyUI" ]; then
     cd data
     git clone https://github.com/comfyanonymous/ComfyUI.git
     cd ComfyUI
-    pip install -r requirements.txt
+    python3 -m pip install -r requirements.txt
     cd ../..
 fi
 
 # Start ComfyUI
 echo "Starting ComfyUI on port 8188..."
 cd data/ComfyUI
-nohup python main.py --listen 0.0.0.0 > ../comfyui.log 2>&1 &
+nohup python3 main.py --listen 0.0.0.0 > ../comfyui.log 2>&1 &
 cd ../..
 
 echo "All services successfully started on Bare Metal!"
