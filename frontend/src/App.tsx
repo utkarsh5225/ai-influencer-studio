@@ -6,6 +6,9 @@ function GenerationTab() {
   const [images, setImages] = useState<string[]>([]);
   const [progress, setProgress] = useState<number | null>(null);
   const [nodeName, setNodeName] = useState<string>("");
+  const [steps, setSteps] = useState<number>(28);
+  const [seed, setSeed] = useState<number>(-1);
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
   
   const handleGenerate = async () => {
     setStatus("generating...");
@@ -17,7 +20,7 @@ function GenerationTab() {
       const res = await fetch(`${apiUrl}/generation/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, steps: 20 })
+        body: JSON.stringify({ prompt, steps, seed })
       });
       const data = await res.json();
       
@@ -94,7 +97,16 @@ function GenerationTab() {
             onChange={(e) => setPrompt(e.target.value)}
          />
          <div className="mt-4 flex justify-between items-center">
-            <span className="text-sm text-gray-400">Status: <span className="text-blue-400 font-medium ml-1">{status}</span></span>
+            <div className="flex items-center gap-4">
+               <span className="text-sm text-gray-400">Status: <span className="text-blue-400 font-medium ml-1">{status}</span></span>
+               <button 
+                 onClick={() => setShowAdvanced(!showAdvanced)}
+                 className="text-sm text-gray-500 hover:text-blue-400 transition-colors flex items-center gap-1"
+               >
+                 {showAdvanced ? "Hide Advanced" : "Show Advanced"}
+                 <span className={`transform transition-transform ${showAdvanced ? "rotate-180" : ""}`}>▼</span>
+               </button>
+            </div>
             <button 
                onClick={handleGenerate} 
                disabled={status.includes("generating")} 
@@ -103,6 +115,34 @@ function GenerationTab() {
                {status.includes("generating") ? "Processing..." : "Generate Image"}
             </button>
          </div>
+         
+         {showAdvanced && (
+            <div className="mt-6 p-4 bg-[#0B0F19] border border-gray-700/50 rounded-xl grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+               <div>
+                  <div className="flex justify-between items-center mb-2">
+                     <label className="text-sm font-medium text-gray-300">Sampling Steps</label>
+                     <span className="text-xs text-blue-400 font-mono bg-blue-500/10 px-2 py-0.5 rounded">{steps}</span>
+                  </div>
+                  <input 
+                     type="range" min="10" max="50" step="1" 
+                     value={steps} onChange={(e) => setSteps(parseInt(e.target.value))}
+                     className="w-full accent-blue-500 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Higher steps = better anatomy and detail, but slower generation. (Recommended: 25-30 for FLUX)</p>
+               </div>
+               <div>
+                  <div className="flex justify-between items-center mb-2">
+                     <label className="text-sm font-medium text-gray-300">Seed</label>
+                  </div>
+                  <input 
+                     type="number" 
+                     value={seed} onChange={(e) => setSeed(parseInt(e.target.value))}
+                     className="w-full bg-[#111827] border border-gray-700 rounded-lg p-2 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-sm font-mono"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Set to -1 for a random seed each time.</p>
+               </div>
+            </div>
+         )}
       </div>
       <div className="mt-6 flex-1 bg-[#111827]/30 border border-gray-800/50 rounded-2xl p-6 overflow-y-auto custom-scrollbar flex flex-col">
          {progress !== null ? (
