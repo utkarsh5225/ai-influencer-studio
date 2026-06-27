@@ -123,7 +123,7 @@ def start_training(req: TrainingRequest, background_tasks: BackgroundTasks):
                         "noise_scheduler": "flowmatch"
                     },
                     "model": {
-                        "name_or_path": "black-forest-labs/FLUX.1-schnell",
+                        "name_or_path": "black-forest-labs/FLUX.1-dev",
                         "is_flux": True,
                         "quantize": True
                     }
