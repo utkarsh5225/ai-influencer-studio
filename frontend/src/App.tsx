@@ -1,4 +1,99 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+function GenerationTab() {
+  const [prompt, setPrompt] = useState("A stunning photorealistic portrait of an AI influencer, cinematic lighting, 8k resolution, highly detailed");
+  const [status, setStatus] = useState("idle");
+  const [images, setImages] = useState<string[]>([]);
+  
+  const handleGenerate = async () => {
+    setStatus("generating...");
+    setImages([]);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const res = await fetch(`${apiUrl}/generation/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, steps: 20 })
+      });
+      const data = await res.json();
+      
+      if (data.prompt_id) {
+         setStatus("queued");
+         pollStatus(data.prompt_id, apiUrl);
+      } else {
+         setStatus("error: no prompt_id returned");
+      }
+    } catch (e: any) {
+      setStatus("error: " + e.message);
+    }
+  };
+
+  const pollStatus = async (prompt_id: string, apiUrl: string) => {
+    const interval = setInterval(async () => {
+       try {
+         const res = await fetch(`${apiUrl}/generation/status/${prompt_id}`);
+         const data = await res.json();
+         
+         if (data.status === "complete") {
+            clearInterval(interval);
+            setStatus("complete!");
+            // ComfyUI serves images on port 8188. We proxy this by modifying the URL.
+            const comfyUrl = apiUrl.replace("8000", "8188");
+            const imgUrls = data.images.map((img: string) => {
+                const filename = img.split('/').pop();
+                return `${comfyUrl}/view?filename=${filename}&type=output`;
+            });
+            setImages(imgUrls);
+         } else if (data.status === "error") {
+            clearInterval(interval);
+            setStatus("failed: " + data.message);
+         } else {
+            setStatus("generating... (this takes about 30 seconds)");
+         }
+       } catch(e) {
+           console.error("Polling error", e);
+       }
+    }, 3000);
+  };
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out h-full flex flex-col">
+      <div className="bg-[#111827]/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-6 shadow-lg">
+         <h3 className="text-xl font-bold text-white mb-4">✨ Generate Image (FLUX.1-dev)</h3>
+         <textarea 
+            className="w-full bg-[#0B0F19] border border-gray-700 rounded-xl p-4 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all resize-none"
+            rows={4}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+         />
+         <div className="mt-4 flex justify-between items-center">
+            <span className="text-sm text-gray-400">Status: <span className="text-blue-400 font-medium ml-1">{status}</span></span>
+            <button 
+               onClick={handleGenerate} 
+               disabled={status.includes("generating")} 
+               className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white font-medium rounded-xl transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+               {status.includes("generating") ? "Processing..." : "Generate Image"}
+            </button>
+         </div>
+      </div>
+      <div className="mt-6 flex-1 bg-[#111827]/30 border border-gray-800/50 rounded-2xl p-6 overflow-y-auto custom-scrollbar">
+         {images.length > 0 ? (
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             {images.map((img, i) => (
+                <img key={i} src={img} className="w-full h-auto rounded-xl shadow-2xl border border-gray-700/50" alt="Generated Output" />
+             ))}
+           </div>
+         ) : (
+           <div className="h-full flex flex-col items-center justify-center text-gray-600 font-medium">
+              <span className="text-5xl mb-4">🖼️</span>
+              Generated images will appear here
+           </div>
+         )}
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -116,7 +211,11 @@ function App() {
             </div>
           )}
 
-          {activeTab !== 'dashboard' && (
+          {activeTab === 'generation' && (
+            <GenerationTab />
+          )}
+
+          {activeTab !== 'dashboard' && activeTab !== 'generation' && (
             <div className="h-full flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
               <span className="text-6xl mb-6 opacity-80">{navItems.find(i => i.id === activeTab)?.icon}</span>
               <h3 className="text-2xl font-semibold text-gray-200 mb-2">{navItems.find(i => i.id === activeTab)?.label} Module</h3>

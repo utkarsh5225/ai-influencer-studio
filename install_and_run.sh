@@ -26,7 +26,9 @@ nohup celery -A celery_app worker --loglevel=info > ../data/celery.log 2>&1 &
 cd ..
 
 # Start FastAPI Backend in background
-nohup uvicorn backend.main:app --host 0.0.0.0 --port 8000 > data/api.log 2>&1 &
+cd backend
+nohup uvicorn main:app --host 0.0.0.0 --port 8000 > ../data/api.log 2>&1 &
+cd ..
 
 echo "Services started! API is running on port 8000."
 echo "Check data/api.log and data/celery.log for output."
