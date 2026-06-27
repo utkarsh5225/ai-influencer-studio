@@ -49,7 +49,13 @@ def run_training(config_dict: dict, job_id: str):
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         
         for line in iter(process.stdout.readline, ''):
-            training_state["log"] = line
+            if not line:
+                break
+            training_state["log"] += line
+            # Keep log from getting too massive (keep last 5000 chars)
+            if len(training_state["log"]) > 5000:
+                training_state["log"] = "..." + training_state["log"][-4997:]
+                
             # Naive progress parsing for ai-toolkit (e.g. 10/1000)
             if "/" in line and "it" in line:
                 try:
@@ -65,10 +71,10 @@ def run_training(config_dict: dict, job_id: str):
         if return_code == 0:
             training_state["status"] = "success"
             training_state["progress"] = 100
-            training_state["log"] = "Training completed successfully! LoRA saved."
+            training_state["log"] += "\nTraining completed successfully! LoRA saved."
         else:
             training_state["status"] = "error"
-            training_state["log"] = f"Training failed with exit code {return_code}"
+            training_state["log"] += f"\nTraining failed with exit code {return_code}"
             
     except Exception as e:
         training_state["status"] = "error"
@@ -105,7 +111,6 @@ def start_training(req: TrainingRequest, background_tasks: BackgroundTasks):
                     "datasets": [
                         {
                             "folder_path": f"/workspace/ai-influencer-studio/data/datasets/{req.dataset_name}",
-                            "caption_ext": "txt",
                             "resolution": [req.resolution, req.resolution],
                             "default_caption": req.trigger_word
                         }
