@@ -175,6 +175,183 @@ function GenerationTab() {
   );
 }
 
+function DatasetsTab() {
+  const [datasets, setDatasets] = useState<any[]>([]);
+  const [newDatasetName, setNewDatasetName] = useState("");
+  const [files, setFiles] = useState<FileList | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+  useEffect(() => {
+    fetchDatasets();
+  }, []);
+
+  const fetchDatasets = async () => {
+    try {
+      const res = await fetch(`${apiUrl}/datasets/`);
+      const data = await res.json();
+      setDatasets(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!newDatasetName) return;
+    const formData = new FormData();
+    formData.append("name", newDatasetName);
+    try {
+      await fetch(`${apiUrl}/datasets/create`, {
+        method: "POST",
+        body: formData
+      });
+      setNewDatasetName("");
+      fetchDatasets();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpload = async (datasetName: string) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+      formData.append("files", files[i]);
+    }
+    try {
+      await fetch(`${apiUrl}/datasets/${datasetName}/upload`, {
+        method: "POST",
+        body: formData
+      });
+      setFiles(null);
+      fetchDatasets();
+    } catch (e) {
+      console.error(e);
+    }
+    setUploading(false);
+  };
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out h-full flex flex-col space-y-6">
+      <div className="bg-[#111827]/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-6 shadow-lg">
+         <h3 className="text-xl font-bold text-white mb-4">📁 Create Dataset</h3>
+         <div className="flex gap-4">
+            <input 
+               type="text" 
+               placeholder="Dataset Name (e.g., my_face)" 
+               className="flex-1 bg-[#0B0F19] border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 outline-none"
+               value={newDatasetName}
+               onChange={(e) => setNewDatasetName(e.target.value)}
+            />
+            <button onClick={handleCreate} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition-colors">
+               Create
+            </button>
+         </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+         {datasets.map((d: any) => (
+            <div key={d.name} className="bg-[#111827]/50 border border-gray-800 rounded-2xl p-6">
+               <h4 className="text-lg font-bold text-white mb-2">{d.name}</h4>
+               <p className="text-gray-400 text-sm mb-4">{d.image_count} images</p>
+               <input type="file" multiple accept="image/*" onChange={(e) => setFiles(e.target.files)} className="mb-4 text-sm text-gray-400" />
+               <button 
+                  onClick={() => handleUpload(d.name)}
+                  disabled={uploading}
+                  className="w-full py-2 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-sm font-medium hover:bg-emerald-600/30 transition-colors"
+               >
+                  {uploading ? "Uploading..." : "Upload Images"}
+               </button>
+            </div>
+         ))}
+      </div>
+    </div>
+  );
+}
+
+function TrainingTab() {
+  const [datasets, setDatasets] = useState<any[]>([]);
+  const [selectedDataset, setSelectedDataset] = useState("");
+  const [triggerWord, setTriggerWord] = useState("sks_influencer");
+  const [status, setStatus] = useState<any>({ status: "idle", progress: 0, log: "" });
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+  useEffect(() => {
+    fetch(`${apiUrl}/datasets/`).then(r => r.json()).then(setDatasets);
+    const interval = setInterval(pollStatus, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const pollStatus = async () => {
+    try {
+      const res = await fetch(`${apiUrl}/training/status`);
+      const data = await res.json();
+      setStatus(data);
+    } catch (e) {}
+  };
+
+  const handleTrain = async () => {
+    try {
+      await fetch(`${apiUrl}/training/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dataset_name: selectedDataset, trigger_word: triggerWord })
+      });
+      pollStatus();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out h-full flex flex-col space-y-6">
+      <div className="bg-[#111827]/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-6 shadow-lg">
+         <h3 className="text-xl font-bold text-white mb-4">🧠 Train FLUX LoRA</h3>
+         <div className="grid grid-cols-2 gap-6 mb-6">
+            <div>
+               <label className="text-sm font-medium text-gray-400 block mb-2">Select Dataset</label>
+               <select 
+                  className="w-full bg-[#0B0F19] border border-gray-700 rounded-xl p-3 text-white outline-none"
+                  value={selectedDataset} onChange={(e) => setSelectedDataset(e.target.value)}
+               >
+                  <option value="">-- Select --</option>
+                  {datasets.map((d: any) => <option key={d.name} value={d.name}>{d.name} ({d.image_count} imgs)</option>)}
+               </select>
+            </div>
+            <div>
+               <label className="text-sm font-medium text-gray-400 block mb-2">Trigger Word</label>
+               <input 
+                  type="text" className="w-full bg-[#0B0F19] border border-gray-700 rounded-xl p-3 text-white outline-none"
+                  value={triggerWord} onChange={(e) => setTriggerWord(e.target.value)}
+               />
+            </div>
+         </div>
+         <button 
+            onClick={handleTrain} disabled={status.status === "running" || !selectedDataset}
+            className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-xl transition-all shadow-lg disabled:opacity-50"
+         >
+            {status.status === "running" ? "Training in Progress..." : "Start Training"}
+         </button>
+      </div>
+
+      <div className="bg-[#111827]/50 border border-gray-800 rounded-2xl p-6 flex-1 flex flex-col">
+         <h4 className="text-white font-bold mb-4">Live Terminal Output</h4>
+         <div className="bg-black/50 border border-gray-700 rounded-xl p-4 flex-1 font-mono text-sm text-green-400 overflow-y-auto whitespace-pre-wrap">
+            {status.log || "Awaiting training command..."}
+         </div>
+         {status.status === "running" && (
+            <div className="mt-4">
+               <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-purple-500 transition-all duration-300" style={{ width: `${status.progress}%` }}></div>
+               </div>
+            </div>
+         )}
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
 
@@ -295,7 +472,15 @@ function App() {
             <GenerationTab />
           )}
 
-          {activeTab !== 'dashboard' && activeTab !== 'generation' && (
+          {activeTab === 'datasets' && (
+            <DatasetsTab />
+          )}
+
+          {activeTab === 'training' && (
+            <TrainingTab />
+          )}
+
+          {activeTab !== 'dashboard' && activeTab !== 'generation' && activeTab !== 'datasets' && activeTab !== 'training' && (
             <div className="h-full flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
               <span className="text-6xl mb-6 opacity-80">{navItems.find(i => i.id === activeTab)?.icon}</span>
               <h3 className="text-2xl font-semibold text-gray-200 mb-2">{navItems.find(i => i.id === activeTab)?.label} Module</h3>
