@@ -17,6 +17,8 @@ def queue_prompt(prompt_workflow):
     try:
         response = urllib.request.urlopen(req)
         return json.loads(response.read())
+    except urllib.error.HTTPError as e:
+        return {"error": f"HTTP {e.code}: {e.read().decode('utf-8')}"}
     except Exception as e:
         return {"error": str(e)}
 
@@ -53,7 +55,7 @@ def build_flux_workflow(prompt: str, seed: int, steps: int = 20, lora_name: str 
         "4": {
             "class_type": "CheckpointLoaderSimple",
             "inputs": {
-                "ckpt_name": "flux1-dev.safetensors"
+                "ckpt_name": "v1-5-pruned-emaonly.safetensors"
             }
         },
         "5": {
