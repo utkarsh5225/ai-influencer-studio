@@ -18,7 +18,7 @@ mkdir -p data/workflows
 mkdir -p data/calendar
 
 # Install Backend Requirements
-pip install -r backend/requirements.txt
+python3 -m pip install -r backend/requirements.txt
 
 # Start Celery Worker in background
 cd backend
@@ -27,7 +27,7 @@ cd ..
 
 # Start FastAPI Backend in background
 cd backend
-nohup uvicorn main:app --host 0.0.0.0 --port 8000 > ../data/api.log 2>&1 &
+nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 > ../data/api.log 2>&1 &
 cd ..
 
 echo "Services started! API is running on port 8000."
