@@ -274,6 +274,7 @@ function TrainingTab() {
   const [datasets, setDatasets] = useState<any[]>([]);
   const [selectedDataset, setSelectedDataset] = useState("");
   const [triggerWord, setTriggerWord] = useState("sks_influencer");
+  const [hfToken, setHfToken] = useState("");
   const [status, setStatus] = useState<any>({ status: "idle", progress: 0, log: "" });
   const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -296,7 +297,7 @@ function TrainingTab() {
       await fetch(`${apiUrl}/training/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dataset_name: selectedDataset, trigger_word: triggerWord })
+        body: JSON.stringify({ dataset_name: selectedDataset, trigger_word: triggerWord, hf_token: hfToken })
       });
       pollStatus();
     } catch (e) {
@@ -326,9 +327,16 @@ function TrainingTab() {
                   value={triggerWord} onChange={(e) => setTriggerWord(e.target.value)}
                />
             </div>
+            <div>
+               <label className="text-sm font-medium text-gray-400 block mb-2">HuggingFace Token (Read)</label>
+               <input 
+                  type="password" placeholder="hf_..." className="w-full bg-[#0B0F19] border border-gray-700 rounded-xl p-3 text-white outline-none"
+                  value={hfToken} onChange={(e) => setHfToken(e.target.value)}
+               />
+            </div>
          </div>
          <button 
-            onClick={handleTrain} disabled={status.status === "running" || !selectedDataset}
+            onClick={handleTrain} disabled={status.status === "running" || !selectedDataset || !hfToken.startsWith("hf_")}
             className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-xl transition-all shadow-lg disabled:opacity-50"
          >
             {status.status === "running" ? "Training in Progress..." : "Start Training"}

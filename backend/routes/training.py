@@ -21,13 +21,14 @@ AI_TOOLKIT_PATH = os.getenv("AI_TOOLKIT_PATH", "/workspace/ai-toolkit")
 class TrainingRequest(BaseModel):
     dataset_name: str
     trigger_word: str
+    hf_token: str = None
     resolution: int = 1024
     epochs: int = 10
     learning_rate: float = 1e-4
     batch_size: int = 1
     optimizer: str = "adamw8bit"
 
-def run_training(config_dict: dict, job_id: str):
+def run_training(config_dict: dict, job_id: str, hf_token: str = None):
     global training_state
     training_state["status"] = "running"
     training_state["progress"] = 0
@@ -45,8 +46,13 @@ def run_training(config_dict: dict, job_id: str):
             return
             
         training_state["log"] = f"Starting ai-toolkit at {AI_TOOLKIT_PATH}...\n"
+        
+        env_dict = os.environ.copy()
+        if hf_token:
+            env_dict["HF_TOKEN"] = hf_token
+            
         cmd = ["python", os.path.join(AI_TOOLKIT_PATH, "run.py"), config_path]
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env_dict)
         
         for line in iter(process.stdout.readline, ''):
             if not line:
@@ -134,7 +140,7 @@ def start_training(req: TrainingRequest, background_tasks: BackgroundTasks):
     
     import uuid
     job_id = str(uuid.uuid4())
-    background_tasks.add_task(run_training, config, job_id)
+    background_tasks.add_task(run_training, config, job_id, req.hf_token)
     return {"status": "started", "job_id": job_id}
 
 @router.get("/status")
