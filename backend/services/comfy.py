@@ -32,33 +32,31 @@ def get_history(prompt_id):
 
 def build_flux_workflow(prompt: str, seed: int, steps: int = 20, lora_name: str = None, lora_strength: float = 1.0, width: int = 1024, height: int = 1024):
     """
-    Builds a basic ComfyUI workflow JSON for FLUX.1 dev generation.
+    Builds a complete ComfyUI workflow JSON for FLUX.1 dev generation.
     """
-    # This is a highly simplified workflow graph representation for ComfyUI.
-    # In reality, this would be a large JSON exported from the ComfyUI interface.
     workflow = {
-        "3": {
-            "class_type": "KSampler",
+        "1": {
+            "class_type": "UNETLoader",
             "inputs": {
-                "seed": seed,
-                "steps": steps,
-                "cfg": 1.0, # Flux uses 1.0 or guidance in a separate node
-                "sampler_name": "euler",
-                "scheduler": "simple",
-                "denoise": 1.0,
-                "model": ["20", 0], # Output from Loras or base model
-                "positive": ["6", 0],
-                "negative": ["7", 0],
-                "latent_image": ["5", 0]
+                "unet_name": "flux1-dev.safetensors",
+                "weight_dtype": "default"
+            }
+        },
+        "2": {
+            "class_type": "DualCLIPLoader",
+            "inputs": {
+                "clip_name1": "t5xxl_fp16.safetensors",
+                "clip_name2": "clip_l.safetensors",
+                "type": "flux"
+            }
+        },
+        "3": {
+            "class_type": "VAELoader",
+            "inputs": {
+                "vae_name": "ae.safetensors"
             }
         },
         "4": {
-            "class_type": "CheckpointLoaderSimple",
-            "inputs": {
-                "ckpt_name": "v1-5-pruned-emaonly.safetensors"
-            }
-        },
-        "5": {
             "class_type": "EmptyLatentImage",
             "inputs": {
                 "batch_size": 1,
@@ -66,32 +64,54 @@ def build_flux_workflow(prompt: str, seed: int, steps: int = 20, lora_name: str 
                 "height": height
             }
         },
-        "6": {
+        "5": {
             "class_type": "CLIPTextEncode",
             "inputs": {
                 "text": prompt,
-                "clip": ["4", 1] # Simplified, Flux uses dual clips usually
+                "clip": ["2", 0]
             }
         },
-        "7": {
+        "6": {
             "class_type": "CLIPTextEncode",
             "inputs": {
                 "text": "",
-                "clip": ["4", 1]
+                "clip": ["2", 0]
+            }
+        },
+        "7": {
+            "class_type": "FluxGuidance",
+            "inputs": {
+                "guidance": 3.5,
+                "conditioning": ["5", 0]
             }
         },
         "8": {
-            "class_type": "VAEDecode",
+            "class_type": "KSampler",
             "inputs": {
-                "samples": ["3", 0],
-                "vae": ["4", 2]
+                "seed": seed,
+                "steps": steps,
+                "cfg": 1.0,
+                "sampler_name": "euler",
+                "scheduler": "simple",
+                "denoise": 1.0,
+                "model": ["1", 0],
+                "positive": ["7", 0],
+                "negative": ["6", 0],
+                "latent_image": ["4", 0]
             }
         },
         "9": {
+            "class_type": "VAEDecode",
+            "inputs": {
+                "samples": ["8", 0],
+                "vae": ["3", 0]
+            }
+        },
+        "10": {
             "class_type": "SaveImage",
             "inputs": {
                 "filename_prefix": "AI_Influencer",
-                "images": ["8", 0]
+                "images": ["9", 0]
             }
         }
     }
@@ -103,16 +123,13 @@ def build_flux_workflow(prompt: str, seed: int, steps: int = 20, lora_name: str 
                 "lora_name": lora_name,
                 "strength_model": lora_strength,
                 "strength_clip": lora_strength,
-                "model": ["4", 0],
-                "clip": ["4", 1]
+                "model": ["1", 0],
+                "clip": ["2", 0]
             }
         }
         # Update KSampler to use Lora
-        workflow["3"]["inputs"]["model"] = ["20", 0]
+        workflow["8"]["inputs"]["model"] = ["20", 0]
+        workflow["5"]["inputs"]["clip"] = ["20", 1]
         workflow["6"]["inputs"]["clip"] = ["20", 1]
-        workflow["7"]["inputs"]["clip"] = ["20", 1]
-    else:
-        # Base model
-        workflow["3"]["inputs"]["model"] = ["4", 0]
         
     return workflow
